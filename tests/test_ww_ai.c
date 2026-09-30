@@ -42,7 +42,7 @@ static void setup(int n, int humans, uint32_t seed)
     NOW = 1000;
     ww_set_seats(&G, n);
     for (int s = 1; s <= humans; s++) {
-        char nm[8];
+        char nm[24];                                     // GCC 会按 int 最长 10 位算,给够
         snprintf(nm, sizeof(nm), "人%d", s);
         int i = ww_join(&G, nm, NOW, NULL);
         ww_act(&G, i, WW_ACT_SEAT, s, 0, NULL, NOW);
