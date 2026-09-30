@@ -49,12 +49,18 @@ if ! curl --fail --location --silent --show-error --retry 3 --retry-all-errors \
     gh release download "v${version}" --repo rhysd/actionlint \
         --pattern "${archive_name}" --dir "${destination}"
 fi
+# 直接比对摘要,不用 `--check`:macOS 自带的是 BSD sha256sum,没有这个参数,
+# 而两种实现都会输出 "<hex>  <file>"。
 if command -v sha256sum >/dev/null 2>&1; then
-    printf '%s  %s\n' "${checksum}" "${archive_path}" | sha256sum --check --status
+    actual="$(sha256sum "${archive_path}" | awk '{print $1}')"
 elif command -v shasum >/dev/null 2>&1; then
-    [[ "$(shasum -a 256 "${archive_path}" | awk '{print $1}')" == "${checksum}" ]]
+    actual="$(shasum -a 256 "${archive_path}" | awk '{print $1}')"
 else
     echo "No SHA-256 verification tool is available" >&2
+    exit 1
+fi
+if [[ "${actual}" != "${checksum}" ]]; then
+    echo "actionlint checksum mismatch: expected ${checksum}, got ${actual}" >&2
     exit 1
 fi
 tar -xzf "${archive_path}" -C "${destination}" actionlint

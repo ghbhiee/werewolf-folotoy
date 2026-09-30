@@ -23,20 +23,35 @@ CONFIG_LV_COLOR_DEPTH_16=y
 CONFIG_LV_FONT_MONTSERRAT_14=y
 CONFIG_LV_FONT_MONTSERRAT_20=y
 # LVGL 内置 malloc 池大小(KB)。它是独立静态区、不与系统堆共享,配大了会白白占用 RAM。
-# 本 demo UI 简单,24KB 足够;若自建复杂界面出现绘制卡死/看门狗,调大此值。
-CONFIG_LV_MEM_SIZE_KILOBYTES=24
+# 狼人杀主持屏离屏实测单屏峰值约 30KB(主机 64 位指针,设备上更小),换屏前先清空
+# 旧屏;加了 AI 玩家后堆吃紧,降到 36KB(设备上每 30 秒日志里打 LVGL 实际用量,见 ww_app.c)。
+CONFIG_LV_MEM_SIZE_KILOBYTES=36
+# 大厅二维码(加入网址 / Wi-Fi)
+CONFIG_LV_USE_QRCODE=y
 
 # --- 系统 ---
 CONFIG_FREERTOS_HZ=1000
 
-# --- Bluetooth LE / NimBLE ---
-# ESP32-C3 仅支持 BLE；示例只启用单连接 peripheral 所需的最小 host 配置。
-CONFIG_BT_ENABLED=y
-CONFIG_BT_NIMBLE_ENABLED=y
-CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
-CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=y
-CONFIG_BT_NIMBLE_ROLE_BROADCASTER=y
-CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
-CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
-CONFIG_BT_NIMBLE_HOST_BASED_PRIVACY=n
-CONFIG_BT_NIMBLE_NVS_PERSIST=n
+# --- Bluetooth ---
+# 狼人杀只用 Wi-Fi(热点或家里 Wi-Fi),关掉 BLE 省下几十 KB 内存。
+CONFIG_BT_ENABLED=n
+
+# --- 网络:板上跑玩家网页的 HTTP 服务器 ---
+# 最多 12 部手机各自 1 秒短轮询:httpd 开 12 个连接(自己另占 3 个),
+# 满了按 LRU 踢最久没用的 keep-alive 连接。
+CONFIG_LWIP_MAX_SOCKETS=16
+# 手机轮询每次只有 1–4 KB JSON,不需要 Wi-Fi 收发放进 IRAM 提速;关掉这两项
+# 把几十 KB 共享 SRAM 还给堆(C3 无 PSRAM,堆越宽裕越稳)。
+CONFIG_ESP_WIFI_IRAM_OPT=n
+CONFIG_ESP_WIFI_RX_IRAM_OPT=n
+
+# --- AI 玩家:FoloToy 直连 DeepSeek / 千问(HTTPS + WSS)---
+# C3 无 PSRAM:TLS 缓冲按记录大小动态分配、握手后释放证书和配置,出方向记录上限 4 KB,
+# 同一时刻只开一条 TLS(ww_brain 串行)。实测峰值见 HANDOFF 进展。
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CA_CERT=y
+CONFIG_MBEDTLS_ASYMMETRIC_CONTENT_LEN=y
+CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN=4096
+# Wi-Fi 常驻接收缓冲 10 → 6(每个约 1.6 KB),把内存留给 TLS
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6

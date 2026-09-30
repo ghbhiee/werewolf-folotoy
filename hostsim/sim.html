@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>狼人杀 · FoloToy 仿真</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC",system-ui,sans-serif;background:#1d2029;color:#e8e8e8;padding:14px}
+  h2{font-size:15px;margin:0 0 8px;color:#aab}
+  #wrap{display:flex;gap:18px;align-items:flex-start}
+  #left{flex:none;width:280px}
+  /* 仿真屏:240x320,配色取自 ui_pixel */
+  #dev{width:240px;height:320px;position:relative;background:#1689E8;overflow:hidden;border:6px solid #333;
+    border-radius:8px;box-sizing:content-box;font-family:"PingFang SC",monospace;color:#17202A}
+  #dev.night{background:#1b2440}
+  .plate{position:absolute;left:5px;top:8px;width:151px;height:33px;background:#F4F4EA;border:3px solid #17202A;
+    box-shadow:4px 4px 0 #17202A;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px}
+  .grass{position:absolute;left:0;top:286px;width:240px;height:34px;background:#82BE2D;border-top:4px solid #A7D93E}
+  .hint{position:absolute;left:0;top:292px;width:240px;text-align:center;font-size:11px;font-weight:700}
+  .hint.alert{background:#17202A;color:#FFD928;padding:3px 0}
+  .panel{position:absolute;background:#F4F4EA;border:3px solid #17202A;box-shadow:3px 3px 0 #17202A}
+  .big{font-size:20px;font-weight:900;text-align:center;margin-top:10px}
+  .ln{font-size:11px;text-align:center;margin-top:6px;padding:0 6px;line-height:1.35}
+  .timer{position:absolute;right:6px;top:4px;font-size:12px;font-weight:700}
+  .seats{position:absolute;display:grid;gap:3px}
+  .seat{border:2px solid #17202A;background:#D9E7EC;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:900;color:#7a8a90}
+  .seat.occ{background:#F4F4EA;color:#17202A}
+  .seat.off{background:#b8c0c4;color:#555}
+  .seat.dead{background:#555;color:#bbb;text-decoration:line-through}
+  .seat.voted{background:#FFD928}
+  .seat.speak{background:#FFB23E;outline:2px solid #E43B2F}
+  .seat.out{background:#E43B2F;color:#fff}
+  .qr{position:absolute;left:46px;top:52px;width:148px;height:148px;background:#fff;border:3px solid #17202A;
+    font-size:9px;word-break:break-all;padding:6px;display:flex;align-items:center;justify-content:center;text-align:center;color:#333}
+  .items div{font-size:15px;font-weight:700;padding:5px 10px}
+  .items div.sel{background:#FFD928}
+  .lines div{font-size:10.5px;font-family:Menlo,monospace;white-space:pre;padding:1px 6px}
+  #keys{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  #keys button{flex:1 0 30%;padding:10px 0;border-radius:8px;border:none;background:#3a4050;color:#fff;font-size:14px;font-weight:700;cursor:pointer}
+  #keys button:active{background:#5a6070}
+  .small{font-size:12px;color:#889;margin-top:8px;line-height:1.6}
+  #cues{font-size:12px;white-space:pre;background:#111;padding:8px;border-radius:6px;height:150px;overflow:auto;margin-top:8px}
+  #phones{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;flex:1}
+  #phones iframe{width:100%;height:640px;border:1px solid #444;border-radius:14px;background:#000}
+  select,input{background:#2a2f3c;color:#fff;border:1px solid #444;border-radius:6px;padding:4px}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="left">
+    <h2>FoloToy(仿真屏,文案与布局来自同一份 ww_host.c)</h2>
+    <div id="dev"></div>
+    <div id="keys">
+      <button data-k="up">▲ 上</button><button data-k="down">▼ 下</button><button data-k="ok">● 确定</button>
+      <button data-k="ok" data-g="double">确定·双击</button><button data-k="ok" data-g="long">确定·长按</button>
+    </div>
+    <div class="small">键盘:↑ ↓ Enter,D = 双击,L = 长按</div>
+    <div class="small">网络模式:
+      <select id="net"><option value="ap">热点</option><option value="sta">家里 Wi-Fi</option><option value="connecting">连接中</option></select>
+      手机数:<input id="count" type="number" min="1" max="12" value="6" style="width:48px">
+    </div>
+    <h2 style="margin-top:12px">提示音 / 语音事件</h2>
+    <div id="cues"></div>
+  </div>
+  <div id="phones"></div>
+</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+async function key(k, g="click"){
+  await fetch("/sim/key", {method:"POST", body:new URLSearchParams({k, g}).toString(),
+    headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+  refresh();
+}
+document.querySelectorAll("#keys button").forEach(b => b.onclick = () => key(b.dataset.k, b.dataset.g || "click"));
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  if (e.key === "ArrowUp") key("up"); else if (e.key === "ArrowDown") key("down");
+  else if (e.key === "Enter") key("ok"); else if (e.key === "d") key("ok", "double"); else if (e.key === "l") key("ok", "long");
+});
+$("net").onchange = async () => {
+  await fetch("/sim/net", {method:"POST", body:"mode=" + $("net").value, headers:{"Content-Type":"application/x-www-form-urlencoded"}});
+  refresh();
+};
+
+function seatsHtml(v, x, y, cols, size){
+  let h = `<div class="seats" style="left:${x}px;top:${y}px;grid-template-columns:repeat(${cols},${size}px)">`;
+  v.seats.forEach((f, i) => {
+    const c = ["seat"];
+    if (f & 1) c.push("occ"); if ((f & 1) && !(f & 2)) c.push("off");
+    if (f & 4) c.push("dead"); if (f & 8) c.push("voted"); if (f & 16) c.push("speak"); if (f & 32) c.push("out");
+    h += `<div class="${c.join(" ")}" style="height:${size}px">${i + 1}</div>`;
+  });
+  return h + "</div>";
+}
+const fmtT = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+function draw(v){
+  const d = $("dev");
+  d.classList.toggle("night", !!v.night);
+  let h = `<div class="plate">${esc(v.title)}</div><div class="grass"></div>`;
+  if (v.kind === "lobby" || v.kind === "setup") {
+    h += `<div class="qr">[二维码]<br>${esc(v.qr)}</div>
+      <div class="ln" style="position:absolute;top:204px;width:240px;color:#fff">${esc(v.qr_label)}<br>${esc(v.qr_label2)}</div>
+      <div class="ln" style="position:absolute;top:236px;width:240px;color:#fff">${esc(v.info)}</div>`;
+    if (v.kind === "lobby") h += seatsHtml(v, 6, 258, 12, 16);
+  } else if (v.kind === "game" || v.kind === "boot" || v.kind === "volume") {
+    h += `<div class="panel" style="left:8px;top:52px;width:224px;height:112px">
+      ${v.timer >= 0 ? `<div class="timer">${v.timer_down ? v.timer + "s" : fmtT(v.timer)}</div>` : ""}
+      <div class="big">${esc(v.big)}</div><div class="ln">${esc(v.line1)}</div><div class="ln">${esc(v.line2)}</div></div>`;
+    if (v.kind === "game") h += seatsHtml(v, 12, 176, 6, 32);
+    if (v.kind === "volume") h += `<div class="panel" style="left:30px;top:180px;width:180px;height:24px"><div style="height:100%;width:${v.volume}%;background:#FFD928"></div></div>`;
+  } else if (v.kind === "menu") {
+    const rows = v.items.slice(v.top, v.top + 6);
+    h += `<div class="panel items" style="left:8px;top:52px;width:224px;padding:4px 0">${rows.map((t, i) =>
+      `<div class="${i + v.top === v.sel ? "sel" : ""}">${esc(t)}</div>`).join("")}</div>`;
+    if (v.info) h += `<div class="ln" style="position:absolute;top:262px;width:240px;color:#fff">${esc(v.info)}</div>`;
+  } else if (v.kind === "status") {
+    h += `<div class="panel lines" style="left:4px;top:52px;width:232px;padding:4px 0">${v.lines.map(t => `<div>${esc(t)}</div>`).join("")}</div>`;
+  }
+  h += `<div class="hint ${v.alert ? "alert" : ""}">${esc(v.hint)}</div>`;
+  d.innerHTML = h;
+}
+
+async function refresh(){
+  try {
+    const v = await (await fetch("/sim/view", {cache:"no-store"})).json();
+    draw(v);
+    const c = await (await fetch("/sim/cues", {cache:"no-store"})).text();
+    if ($("cues").textContent !== c) { $("cues").textContent = c; $("cues").scrollTop = 1e9; }
+  } catch (e) {}
+}
+setInterval(refresh, 500);
+refresh();
+
+function phones(){
+  const n = Math.max(1, Math.min(12, +$("count").value || 6));
+  const box = $("phones");
+  while (box.children.length > n) box.lastChild.remove();
+  for (let i = box.children.length + 1; i <= n; i++) {
+    const f = document.createElement("iframe");
+    f.src = `/?p=${i}`;
+    box.append(f);
+  }
+}
+$("count").onchange = phones;
+phones();
+</script>
+</body>
+</html>

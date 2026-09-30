@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>狼人杀 · AI Key</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  button{touch-action:manipulation}
+  body{font-family:-apple-system,"PingFang SC","Noto Sans SC",system-ui,sans-serif;color:#eaeef7;
+    background:#0b0e15;min-height:100dvh;padding:16px}
+  .box{max-width:460px;margin:0 auto}
+  h1{font-size:22px;text-align:center;margin:20px 0 6px}
+  p{font-size:14px;color:#aab4c7;line-height:1.7;margin:8px 0}
+  label{display:block;font-size:13px;color:#6a7488;margin:14px 0 6px}
+  input{width:100%;min-height:50px;padding:0 14px;border-radius:14px;border:1px solid rgba(255,255,255,.18);
+    background:#1b2231;color:#eaeef7;font-size:15px;outline:none;font-family:ui-monospace,Menlo,monospace}
+  button{display:block;width:100%;min-height:50px;margin-top:18px;border:none;border-radius:14px;
+    background:linear-gradient(180deg,#f4cd6d,#e6b34d);color:#1a1206;font-size:16px;font-weight:800}
+  #msg{text-align:center;margin-top:14px;font-size:14px;color:#e6b34d;min-height:20px}
+  .st{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;margin-left:6px}
+  .ok{background:rgba(73,201,139,.15);color:#49c98b}.no{background:rgba(236,90,84,.15);color:#ec5a54}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>AI 玩家 Key</h1>
+  <p>AI 玩家用 DeepSeek 想事情、写发言，用千问（阿里云百炼）把发言读出来、把真人说的话转成文字。Key 只存在这台 FoloToy 里，不会显示出来。</p>
+  <p>只想改其中一个就只填那一个，空着的不变。这个页面只在 FoloToy 显示「填写 Key」二维码的时候能保存。</p>
+  <label>千问 / 百炼 API Key（DASHSCOPE_API_KEY）<span id="s-ds" class="st"></span></label>
+  <input id="ds" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-…">
+  <label>DeepSeek API Key<span id="s-dk" class="st"></span></label>
+  <input id="dk" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-…">
+  <button id="save">保存</button>
+  <div id="msg"></div>
+</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+function badge(el, on){ el.textContent = on ? "已配" : "未配"; el.className = "st " + (on ? "ok" : "no"); }
+async function status(){
+  try {
+    const j = await (await fetch("/api/keys", {cache:"no-store"})).json();
+    badge($("s-ds"), j.ds); badge($("s-dk"), j.dk);
+    if (!j.open) $("msg").textContent = "FoloToy 上没打开「填写 Key」页面：长按确定 → AI 设置 → 填写 Key";
+  } catch (e) { $("msg").textContent = "连不上 FoloToy"; }
+}
+$("save").onclick = async () => {
+  const ds = $("ds").value.trim(), dk = $("dk").value.trim();
+  if (!ds && !dk) { $("msg").textContent = "至少填一个"; return; }
+  $("msg").textContent = "保存中…";
+  try {
+    const r = await fetch("/api/keys", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body: new URLSearchParams({ds, dk}).toString()});
+    const j = await r.json();
+    if (j.ok) { $("ds").value = ""; $("dk").value = ""; $("msg").textContent = "已保存。回到 FoloToy：AI 设置 → 测试 AI"; }
+    else $("msg").textContent = j.err || "保存失败";
+  } catch (e) { $("msg").textContent = "连不上 FoloToy"; }
+  status();
+};
+status();
+</script>
+</body>
+</html>

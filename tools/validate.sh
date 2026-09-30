@@ -28,6 +28,22 @@ run_static_checks() {
         tests/test_ui_pixel_math.c main/ui_pixel_math.c \
         -o "${test_dir}/test_ui_pixel_math"
     "${test_dir}/test_ui_pixel_math"
+    # 狼人杀:规则状态机(含 440 局 bot 整局)与 FoloToy 三键主持逻辑
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_ww_core.c main/ww_core.c \
+        -o "${test_dir}/test_ww_core"
+    "${test_dir}/test_ww_core"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_ww_host.c main/ww_host.c main/ww_core.c \
+        -o "${test_dir}/test_ww_host"
+    "${test_dir}/test_ww_host"
+    "${CC:-cc}" -std=c11 -Wall -Wextra -Werror -Imain \
+        tests/test_ww_ai.c main/ww_ai.c main/ww_core.c \
+        -o "${test_dir}/test_ww_ai"
+    "${test_dir}/test_ww_ai"
+    # 狼人杀:主机仿真服务器 + HTTP bot 整局(真实玩家接口)
+    CC="${CC:-cc}" ./hostsim/build.sh >/dev/null
+    python3 hostsim/bot_game.py --sizes 5,12 --games 1 --speed 40
     python3 tests/test_verify_firmware.py
     rm -rf "${test_dir}"
     echo "Host tests: PASS"

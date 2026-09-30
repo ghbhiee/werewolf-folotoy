@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0b0e15">
+<title>狼人杀</title>
+<style>
+  /* FoloToy 局域网精简版:单文件、无外部资源(热点模式下手机没有互联网) */
+  :root{
+    --bg:#0b0e15; --surface:#141a26; --surface-2:#1b2231; --elev:#232c40;
+    --border:rgba(255,255,255,.09); --border-2:rgba(255,255,255,.18);
+    --text:#eaeef7; --text-2:#aab4c7; --text-3:#6a7488;
+    --gold:#e6b34d; --gold-2:#f4cd6d; --gold-soft:rgba(230,179,77,.14);
+    --danger:#ec5a54; --danger-soft:rgba(236,90,84,.15);
+    --alive:#49c98b; --alive-soft:rgba(73,201,139,.15);
+    --blue:#4aa3ff; --blue-soft:rgba(74,163,255,.15);
+    color-scheme:dark;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  button,.seat,a{touch-action:manipulation}
+  body{font-family:-apple-system,"PingFang SC","Noto Sans SC",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;color:var(--text);min-height:100dvh;
+    background:radial-gradient(120% 90% at 50% -10%,#1a2130 0%,#0b0e15 60%) fixed;}
+  body.night{background:radial-gradient(120% 90% at 50% -10%,#10131d 0%,#05060a 60%) fixed}
+  body.sheet-open{overflow:hidden}
+  #app{max-width:560px;margin:0 auto;padding:10px 12px calc(84px + env(safe-area-inset-bottom,0px))}
+  .hidden{display:none!important}
+  h1{font-size:26px;font-weight:900;text-align:center;margin:28px 0 6px;letter-spacing:2px}
+  .sub{text-align:center;color:var(--text-3);font-size:13px;line-height:1.6;margin-bottom:14px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:14px;margin:10px 0}
+  input[type=text],input[type=password]{width:100%;min-height:50px;padding:0 14px;border-radius:14px;
+    border:1px solid var(--border-2);background:var(--surface-2);color:var(--text);font-size:16px;outline:none}
+  input:focus{border-color:var(--gold)}
+  .btn{display:block;width:100%;min-height:50px;margin-top:12px;border:none;border-radius:14px;
+    background:linear-gradient(180deg,var(--gold-2),var(--gold));color:#1a1206;font-size:16px;font-weight:800;cursor:pointer}
+  .btn:disabled{opacity:.4}
+  .btn.ghost{background:var(--surface-2);color:var(--text);font-weight:700;border:1px solid var(--border-2)}
+  .btn.danger{background:var(--danger-soft);color:var(--danger);border:1px solid var(--danger)}
+  .btn.blue{background:var(--blue-soft);color:var(--blue);border:1px solid var(--blue)}
+  .row{display:flex;gap:10px}.row .btn{flex:1}
+
+  /* 顶部 */
+  #top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;
+    font-weight:700;font-size:13px;white-space:nowrap}
+  .pill.phase{background:var(--gold-soft);color:var(--gold)}
+  .pill.alive{background:var(--alive-soft);color:var(--alive)}
+  .pill.me{background:var(--surface-2);color:var(--text-2);margin-left:auto}
+  .pill.off{background:var(--danger-soft);color:var(--danger)}
+
+  /* 公告 */
+  #news{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:16px;margin-top:10px;
+    background:linear-gradient(90deg,var(--gold-soft),transparent);border:1px solid var(--gold)}
+  #news .ic{font-size:20px;line-height:1.3}
+  #news .tx{font-size:15px;line-height:1.5;font-weight:600}
+  #news .tm{font-size:12px;color:var(--gold);margin-top:2px;font-variant-numeric:tabular-nums}
+
+  /* 座位 */
+  #seats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+  .seat{position:relative;border-radius:14px;background:var(--surface);border:2px solid var(--border);
+    padding:8px 4px 7px;text-align:center;min-height:74px;cursor:pointer;user-select:none;-webkit-user-select:none}
+  .seat .no{font-size:12px;color:var(--text-3);font-weight:700}
+  .seat .nm{font-size:14px;font-weight:700;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .seat .st{font-size:11px;color:var(--text-3);margin-top:3px;min-height:14px}
+  .seat.empty{border-style:dashed;background:transparent}
+  .seat.empty .nm{color:var(--text-3);font-weight:500}
+  .seat.me{border-color:var(--gold)}
+  .seat.dead{opacity:.45}
+  .seat.dead .nm{text-decoration:line-through}
+  .seat.off .st{color:var(--danger)}
+  .seat.target{border-color:var(--blue);background:var(--blue-soft)}
+  .seat.speak{border-color:var(--alive);box-shadow:0 0 0 3px var(--alive-soft)}
+  .seat.picked{border-color:var(--danger);background:var(--danger-soft)}
+  .seat .badge{position:absolute;top:4px;right:6px;font-size:12px}
+  .seat .role{display:inline-block;margin-top:3px;font-size:11px;padding:1px 7px;border-radius:999px;
+    background:var(--surface-2);color:var(--text-2)}
+  .seat .role.wolf{background:var(--danger-soft);color:var(--danger)}
+  .seat .role.good{background:var(--blue-soft);color:var(--blue)}
+
+  /* 行动面板 */
+  #panel{margin-top:10px}
+  #panel .title{font-size:17px;font-weight:800}
+  #panel .desc{font-size:14px;color:var(--text-2);line-height:1.6;margin-top:6px}
+  .order{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .order span{padding:4px 10px;border-radius:999px;background:var(--surface-2);font-size:13px;font-weight:700}
+  .order span.cur{background:var(--alive-soft);color:var(--alive)}
+  .order span.done{color:var(--text-3)}
+  .list{font-size:14px;line-height:1.7;color:var(--text-2)}
+  .list div{padding:4px 0;border-bottom:1px solid var(--border)}
+  .list div:last-child{border-bottom:none}
+  .list .new{color:var(--gold);font-weight:700}
+  details summary{cursor:pointer;color:var(--text-3);font-size:13px;list-style:none}
+
+  /* 身份钮 */
+  #rolebtn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:58px;height:58px;
+    border-radius:50%;border:2px solid var(--gold);background:var(--surface);color:var(--gold);
+    font-size:14px;font-weight:900;z-index:40;box-shadow:0 8px 24px -6px rgba(0,0,0,.6)}
+  #rolecard{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(82vw,340px);
+    padding:26px 20px;border-radius:22px;background:var(--elev);border:2px solid var(--gold);text-align:center;
+    z-index:60;box-shadow:0 22px 60px -12px rgba(0,0,0,.8)}
+  #rolecard .big{font-size:40px;font-weight:900;margin:8px 0}
+  #rolecard .big.wolf{color:var(--danger)}
+  #rolecard .big.good{color:var(--blue)}
+  #rolecard .hint{font-size:14px;color:var(--text-2);line-height:1.6}
+
+  /* 底部弹出框(不用原生 confirm/prompt) */
+  .sheet-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:.25s;z-index:90}
+  .sheet-mask.show{opacity:1}
+  .sheet{position:fixed;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;background:var(--elev);
+    border-radius:22px 22px 0 0;padding:10px 18px calc(18px + env(safe-area-inset-bottom,0px));
+    transform:translateY(105%);transition:transform .25s;z-index:91}
+  .sheet.show{transform:none}
+  .sh-grip{width:40px;height:5px;border-radius:3px;background:var(--border-2);margin:0 auto 12px}
+  .sh-title{font-size:18px;font-weight:800;text-align:center}
+  .sh-msg{font-size:14px;color:var(--text-2);text-align:center;margin-top:8px;line-height:1.6}
+  .sh-input{margin-top:14px}
+  .sh-btns{display:flex;gap:10px;margin-top:16px}
+  .sh-btns .btn{margin-top:0}
+  #toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);padding:10px 16px;border-radius:12px;
+    background:var(--danger);color:#fff;font-size:14px;font-weight:700;z-index:95;max-width:90vw}
+  #conn{position:fixed;left:0;right:0;top:0;padding:6px;text-align:center;font-size:12px;
+    background:var(--danger);color:#fff;z-index:80}
+</style>
+</head>
+<body>
+<div id="conn" class="hidden">与 FoloToy 的连接断开，正在重连…</div>
+<div id="app">
+  <!-- 加入 -->
+  <div id="screen-join" class="hidden">
+    <h1>🐺 狼人杀</h1>
+    <div class="sub">FoloToy 局域网版 · 输入名字加入房间</div>
+    <div class="card">
+      <input id="name" type="text" maxlength="12" placeholder="你的名字（最多 12 个字）" autocomplete="off">
+      <button class="btn" id="join-btn">加入</button>
+      <div class="sub" id="join-msg" style="margin:10px 0 0"></div>
+    </div>
+  </div>
+
+  <!-- 主界面 -->
+  <div id="screen-main" class="hidden">
+    <div id="top"></div>
+    <div id="news"><div class="ic">📢</div><div><div class="tx" id="news-tx"></div><div class="tm" id="news-tm"></div></div></div>
+    <div id="seats"></div>
+    <div id="panel" class="card"></div>
+    <div id="speech" class="card hidden"></div>
+    <div id="notices" class="card hidden"></div>
+    <div class="card"><details id="logbox"><summary>公告记录 ▾</summary><div class="list" id="log" style="margin-top:8px"></div></details></div>
+  </div>
+</div>
+<button id="rolebtn" class="hidden">身份</button>
+<div id="rolecard" class="hidden"></div>
+
+<script>
+"use strict";
+const ROLE = {wolf:"狼人", seer:"预言家", witch:"女巫", villager:"村民"};
+const ROLE_TIP = {
+  wolf:"夜里和队友一起选择袭击目标。狼人数量不少于好人时获胜。",
+  seer:"每晚可以查验一名玩家是不是狼人。",
+  witch:"一瓶解药（救被刀的人）、一瓶毒药。每晚最多用一瓶。",
+  villager:"没有技能。白天找出狼人并投票放逐。",
+};
+const PH = {lobby:"大厅", deal:"发身份", night:"天黑", wolf:"狼人行动", witch:"女巫行动",
+  seer:"预言家行动", dawn:"天亮", discuss:"讨论", vote:"投票", result:"放逐", over:"游戏结束"};
+const NIGHT = new Set(["night","wolf","witch","seer"]);
+
+// ?p=3 这类参数只给主机仿真用:同一个浏览器里开多个"手机"时各存各的 token
+const TOKEN_KEY = "ww_token" + (new URLSearchParams(location.search).get("p") || "");
+let tok = localStorage.getItem(TOKEN_KEY) || "";
+let st = null, ver = 0, gotAt = 0, failures = 0, busy = false;
+let sigs = {};
+let lastNoticeCount = 0;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------- 网络 ---------- */
+async function api(path, body){
+  const r = await fetch(path, {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body: new URLSearchParams(body).toString(), cache:"no-store"});
+  let j = {};
+  try { j = await r.json(); } catch(e) {}
+  if (r.status === 401) { dropToken("你已不在房间里，请重新加入"); return null; }
+  if (j.err) { toast(j.err); return null; }
+  return j;
+}
+async function act(a, extra={}){
+  if (busy) return;
+  busy = true;
+  try {
+    const j = await api("/api/act", {t:tok, a, ...extra});
+    if (j) { if (navigator.vibrate) navigator.vibrate(15); await poll(true); }
+  } catch(e) { toast("网络不通，请重试"); }
+  finally { busy = false; }
+}
+function dropToken(msg){
+  tok = ""; localStorage.removeItem(TOKEN_KEY); st = null; ver = 0; sigs = {};
+  showJoin(msg);
+}
+let pollTimer = 0;
+async function poll(now){
+  clearTimeout(pollTimer);
+  if (!tok) return;
+  try {
+    const r = await fetch(`/api/state?t=${encodeURIComponent(tok)}&v=${now ? 0 : ver}`, {cache:"no-store"});
+    if (r.status === 401) { dropToken("你已不在房间里（可能被移出或 FoloToy 重启了），请重新加入"); return; }
+    if (r.status === 200) { st = await r.json(); ver = st.v; gotAt = Date.now(); render(); }
+    failures = 0; $("conn").classList.add("hidden");
+  } catch(e) {
+    if (++failures >= 3) $("conn").classList.remove("hidden");
+  }
+  pollTimer = setTimeout(poll, document.hidden ? 3000 : 1000);
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(true); });
+
+/* ---------- 弹出框 ---------- */
+function sheet(o){
+  return new Promise(res => {
+    const mask = document.createElement("div"); mask.className = "sheet-mask";
+    const box = document.createElement("div"); box.className = "sheet";
+    box.innerHTML = `<div class="sh-grip"></div>
+      ${o.title ? `<div class="sh-title">${o.title}</div>` : ""}
+      ${o.message ? `<div class="sh-msg">${o.message}</div>` : ""}
+      ${o.input ? `<input class="sh-input" type="text" maxlength="12">` : ""}
+      <div class="sh-btns">
+        <button class="btn ghost" data-act="0">${o.cancelText || "取消"}</button>
+        <button class="btn ${o.danger ? "danger" : ""}" data-act="1">${o.confirmText || "确定"}</button>
+      </div>`;
+    document.body.append(mask, box);
+    document.body.classList.add("sheet-open");
+    const input = box.querySelector(".sh-input");
+    if (input) input.value = o.value || "";
+    requestAnimationFrame(() => { mask.classList.add("show"); box.classList.add("show"); if (input) input.focus(); });
+    let done = false;
+    const close = v => { if (done) return; done = true;
+      mask.classList.remove("show"); box.classList.remove("show"); document.body.classList.remove("sheet-open");
+      setTimeout(() => { mask.remove(); box.remove(); }, 260);
+      res(v && input ? input.value : v); };
+    box.querySelectorAll("[data-act]").forEach(b => b.onclick = () => close(b.dataset.act === "1"));
+    mask.onclick = () => close(false);
+  });
+}
+let toastTimer = 0;
+function toast(msg){
+  let t = $("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; document.body.append(t); }
+  t.textContent = msg; t.classList.remove("hidden");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add("hidden"), 2600);
+}
+
+/* ---------- 加入 ---------- */
+function showJoin(msg){
+  $("screen-join").classList.remove("hidden");
+  $("screen-main").classList.add("hidden");
+  $("rolebtn").classList.add("hidden");
+  $("name").value = localStorage.getItem("ww_name") || "";
+  $("join-msg").textContent = msg || "";
+}
+$("join-btn").onclick = async () => {
+  const name = $("name").value.trim();
+  if (!name) { $("join-msg").textContent = "请先填写名字"; return; }
+  $("join-btn").disabled = true;
+  try {
+    const j = await api("/api/join", {name});
+    if (j && j.token) {
+      tok = j.token; localStorage.setItem(TOKEN_KEY, tok); localStorage.setItem("ww_name", name);
+      $("screen-join").classList.add("hidden");
+      poll(true);
+    }
+  } catch(e) { $("join-msg").textContent = "连不上 FoloToy，请确认手机连的是同一个 Wi-Fi"; }
+  $("join-btn").disabled = false;
+};
+$("name").addEventListener("keydown", e => { if (e.key === "Enter") $("join-btn").click(); });
+
+/* ---------- 渲染 ---------- */
+function setIfChanged(key, el, html){
+  if (sigs[key] === html) return;
+  sigs[key] = html; el.innerHTML = html;
+}
+function me(){ return st && st.you; }
+function seatOf(n){ return st.seats.find(s => s.s === n); }
+function aliveSeats(exceptMe){
+  return st.seats.filter(s => s.name && s.alive && !(exceptMe && s.s === me().seat)).map(s => s.s);
+}
+
+function render(){
+  if (!st) return;
+  $("screen-join").classList.add("hidden");
+  $("screen-main").classList.remove("hidden");
+  document.body.classList.toggle("night", NIGHT.has(st.ph));
+  renderTop(); renderNews(); renderSeats(); renderPanel(); renderSpeech(); renderNotices(); renderLog(); renderRoleBtn();
+}
+
+function renderTop(){
+  const y = me();
+  let ph = PH[st.ph] || st.ph;
+  if (st.round && st.ph !== "lobby" && st.ph !== "over") ph = (NIGHT.has(st.ph) ? `第${st.round}夜 · ` : `第${st.round}天 · `) + ph;
+  let h = `<span class="pill phase">${ph}</span>`;
+  if (st.ph !== "lobby") h += `<span class="pill alive">存活 ${st.alive}/${st.n}</span>`;
+  else h += `<span class="pill alive">已入座 ${st.seated}/${st.n}</span>`;
+  if (y) h += `<span class="pill me">${y.seat ? y.seat + "号 · " : ""}${esc(y.name)}</span>`;
+  if (y && y.seat && !y.alive && st.ph !== "lobby") h += `<span class="pill off">已出局 · 上帝视角</span>`;
+  setIfChanged("top", $("top"), h);
+}
+
+function renderNews(){
+  const line = (st.log && st.log[0]) || (st.ph === "lobby" ? "等待所有人入座，拿 FoloToy 的人按确定开始游戏。" : "");
+  if (sigs.news !== line) { sigs.news = line; $("news-tx").textContent = line; }
+  tickTimer();
+}
+function tickTimer(){
+  if (!st) return;
+  const d = Math.floor((Date.now() - gotAt) / 1000);
+  let t = "";
+  if (st.ph === "discuss" && st.order) t = `当前发言 ${fmtS(st.spk_el + d)}`;
+  else if (st.left >= 0 && st.ph !== "lobby" && st.ph !== "over") t = `${Math.max(0, st.left - d)} 秒后继续`;
+  else if (st.ph !== "lobby" && st.ph !== "over") t = `已 ${fmtS(st.el + d)}`;
+  $("news-tm").textContent = t;
+}
+const fmtS = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+setInterval(tickTimer, 1000);
+
+// 当前可以点座位做什么
+function targetMode(){
+  const y = me();
+  if (!y) return null;
+  if (st.ph === "lobby") return "seat";
+  if (!y.seat || !y.alive || st.step) return null;
+  if (st.ph === "wolf" && y.role === "wolf") return "wolf";
+  if (st.ph === "seer" && y.role === "seer" && !st.seer_done && y.pending) return "seer";
+  if (st.ph === "witch" && st.witch && !st.witch.done && st.witch.poison) return "poison";
+  if (st.ph === "vote" && y.pending) return "vote";
+  return null;
+}
+
+function renderSeats(){
+  const y = me(), mode = targetMode();
+  const cur = st.order ? st.order[st.cur] : 0;
+  const myWolfPick = st.wolf_votes && y ? st.wolf_votes[String(y.seat)] : undefined;
+  let h = "";
+  for (const s of st.seats) {
+    const cls = ["seat"];
+    let nm, stt = "", badge = "", role = "";
+    if (!s.name) { cls.push("empty"); nm = "空位"; if (mode === "seat") cls.push("target"); }
+    else {
+      nm = esc(s.name);
+      if (y && s.s === y.seat) cls.push("me");
+      if (!s.alive && st.ph !== "lobby") { cls.push("dead"); stt = "出局"; }
+      else if (!s.on) { cls.push("off"); stt = "离线"; }
+      else stt = st.ph === "lobby" ? "已入座" : "";
+      if (s.bot && stt !== "出局") stt = "🤖 机器人";
+      if (s.voted) badge = "✓";
+      if (s.s === cur) { cls.push("speak"); badge = "🎤"; }
+      if (s.mate) badge = "🐺";
+      // 自己的身份不挂在座位上(旁边的人一眼就能看到),只在右下角「身份」里看;
+      // 出局后/结束后才在座位上亮出所有人身份
+      const god = st.ph === "over" || (y && y.seat && !y.alive);
+      if (s.role && god) role = `<span class="role ${s.role === "wolf" ? "wolf" : "good"}">${ROLE[s.role]}</span>`;
+      if (mode && mode !== "seat" && s.alive && canTarget(mode, s.s)) cls.push("target");
+      if (mode === "wolf" && myWolfPick === s.s) cls.push("picked");
+    }
+    h += `<div class="${cls.join(" ")}" data-seat="${s.s}"><span class="badge">${badge}</span>
+      <div class="no">${s.s}号</div><div class="nm">${nm}</div>${role || `<div class="st">${stt}</div>`}</div>`;
+  }
+  setIfChanged("seats", $("seats"), h);
+}
+function canTarget(mode, seat){
+  const y = me();
+  if (mode === "seer" || mode === "vote") return seat !== y.seat;
+  return true;
+}
+$("seats").addEventListener("click", e => {
+  const el = e.target.closest(".seat");
+  if (!el || !st) return;
+  const seat = +el.dataset.seat, mode = targetMode(), s = seatOf(seat);
+  if (!mode) return;
+  if (mode === "seat") {
+    if (s.name) return;
+    act("seat", {seat});
+    return;
+  }
+  if (!s.name || !s.alive || !canTarget(mode, seat)) return;
+  if (mode === "wolf") pickWolf(seat);
+  else if (mode === "seer") pickSeer(seat);
+  else if (mode === "poison") pickPoison(seat);
+  else if (mode === "vote") pickVote(seat);
+});
+
+async function pickWolf(seat){
+  if (await sheet({title: seat ? `袭击 ${seat}号？` : "今晚空刀？", message:"狼人队友能看到你的选择，全部狼人选完后闭眼。选错了可以再改。", confirmText:"确定"}))
+    act("wolf", {target: seat});
+}
+async function pickSeer(seat){
+  if (await sheet({title:`查验 ${seat}号？`, message:"每晚只能查验一次，结果在闭眼时出现在「私人消息」里。"}))
+    act("seer", {target: seat});
+}
+async function pickPoison(seat){
+  if (await sheet({title:`对 ${seat}号 使用毒药？`, message:"毒药只有一瓶，用了今晚就不能再用解药。", danger:true, confirmText:"下毒"}))
+    act("witch", {do: 2, target: seat});
+}
+async function pickVote(seat){
+  if (await sheet({title: seat ? `投票放逐 ${seat}号？` : "弃票？", message:"投出后不能修改。", confirmText:"投票"}))
+    act("vote", {target: seat});
+}
+
+function renderPanel(){
+  const y = me();
+  const p = $("panel");
+  let h = "";
+  const title = (t, d) => `<div class="title">${t}</div>${d ? `<div class="desc">${d}</div>` : ""}`;
+  if (!y) { setIfChanged("panel", p, ""); return; }
+  const dead = y.seat && !y.alive && st.ph !== "lobby";
+  switch (st.ph) {
+  case "lobby":
+    if (!y.seat) h = title("选一个空座位", "点上面虚线框的空位坐下。座位号就是桌上的位置，拿 FoloToy 的人可以用上下键改座位数。");
+    else h = title(`你坐在 ${y.seat} 号`, `等所有座位坐满后，拿 FoloToy 的人按「确定」两次开始游戏。`) +
+      `<div class="row"><button class="btn ghost" data-do="rename">改名字</button><button class="btn ghost" data-do="unseat">离开座位</button></div>`;
+    break;
+  case "deal":
+    h = title("请查看你的身份", `点右下角「身份」按钮查看，不要给别人看。本局：${boardText()}。`);
+    break;
+  case "night":
+    h = title("🌙 天黑请闭眼", "把手机屏幕朝下，等 FoloToy 叫到你的身份再睁眼。");
+    break;
+  case "wolf":
+    if (!dead && y.role === "wolf" && !st.step) {
+      const votes = st.wolf_votes || {};
+      const mine = votes[String(y.seat)];
+      const others = Object.entries(votes).filter(([s]) => +s !== y.seat).map(([s, t]) => `${s}号 → ${+t ? t + "号" : "空刀"}`);
+      h = title("🐺 狼人请睁眼", "点上面的座位选择今晚袭击的目标（蓝框可选），也可以空刀。狼人全部选完后自动闭眼。") +
+        `<div class="desc">你的选择：<b>${mine === undefined ? "还没选" : (+mine ? mine + "号" : "空刀")}</b>${others.length ? "<br>队友：" + others.join("，") : ""}</div>` +
+        `<button class="btn ghost" data-do="nokill">空刀</button>`;
+    } else h = nightWait("狼人");
+    break;
+  case "witch":
+    if (!dead && y.role === "witch" && st.witch && !st.step) {
+      const w = st.witch;
+      if (w.done) { h = title("🧪 已决定", "等待闭眼。"); break; }
+      let d = w.antidote ? (w.kill ? `今晚 <b>${w.kill}号</b> 被狼人袭击。` : "今晚没有人被袭击。") : "解药已经用过了，看不到刀口。";
+      d += `<br>剩余：${w.antidote ? "解药 ×1 " : ""}${w.poison ? "毒药 ×1" : ""}`;
+      if (w.poison) d += "<br>要下毒就点上面的座位（蓝框可选）。";
+      h = title("🧪 女巫请睁眼", d);
+      if (w.antidote && w.kill) h += `<button class="btn" data-do="save">用解药救 ${w.kill}号</button>`;
+      h += `<button class="btn ghost" data-do="pass">今晚不用药</button>`;
+    } else h = nightWait("女巫");
+    break;
+  case "seer":
+    if (!dead && y.role === "seer" && !st.step) {
+      h = st.seer_done ? title("🔮 已查验", "结果在闭眼时出现在下面「私人消息」里。")
+        : title("🔮 预言家请睁眼", "点上面的座位查验一名玩家是不是狼人（不能查自己）。");
+    } else h = nightWait("预言家");
+    break;
+  case "dawn":
+    h = title("☀️ 天亮了", st.dead && st.dead.length ? `昨晚 ${st.dead.map(s => s + "号").join("、")} 死亡。` : "昨晚是平安夜。");
+    break;
+  case "discuss": {
+    const order = st.order.map((s, i) => `<span class="${i === st.cur ? "cur" : i < st.cur ? "done" : ""}">${s}号</span>`).join("");
+    h = title(`🎤 ${st.order[st.cur]}号 发言中`, "按顺序依次发言。轮到你时拿起 FoloToy，按住「确定」听到嘀声再说，说完松手，你的话会转成文字给 AI 玩家听。按「下」交给下一位。") + `<div class="order">${order}</div>`;
+    if (y.seat && y.alive) h += `<button class="btn ghost" data-do="startvote">讨论结束，开始投票</button>`;
+    break;
+  }
+  case "vote":
+    if (y.seat && y.alive) {
+      if (y.pending) h = title("🗳️ 请投票", `点上面的座位投票放逐一名玩家（不能投自己），或者弃票。已投 ${st.voted}/${st.alive}。`) +
+        `<button class="btn ghost" data-do="abstain">弃票</button>`;
+      else h = title("🗳️ 已投票", `你投给了 ${st.my_vote ? st.my_vote + "号" : "弃票"}。已投 ${st.voted}/${st.alive}，等其他人。`);
+    } else h = title("🗳️ 投票中", `已投 ${st.voted}/${st.alive}。`);
+    break;
+  case "result":
+    h = title(st.out ? `${st.out}号 被放逐` : "无人出局", (st.log && st.log[0]) || "");
+    break;
+  case "over":
+    h = title(st.winner === "good" ? "🎉 好人阵营胜利" : "🐺 狼人阵营胜利", "所有身份已公开（见上面座位）。拿 FoloToy 的人按确定两次再来一局。");
+    break;
+  }
+  if (dead && st.ph !== "over") h = title("你已出局 · 上帝视角", "可以看到所有人的身份，请不要剧透。") + h;
+  setIfChanged("panel", p, h);
+}
+function nightWait(who){
+  return `<div class="title">🌙 ${who}请睁眼</div><div class="desc">不是叫你就继续闭眼。</div>`;
+}
+function boardText(){
+  if (!st.board) return "";
+  const [w, s, wi, v] = st.board;
+  return [`${w}狼人`, s ? "1预言家" : "", wi ? "1女巫" : "", `${v}村民`].filter(Boolean).join("、");
+}
+$("panel").addEventListener("click", async e => {
+  const b = e.target.closest("[data-do]");
+  if (!b) return;
+  const d = b.dataset.do;
+  if (d === "unseat") act("unseat");
+  else if (d === "rename") {
+    const v = await sheet({title:"改名字", input:true, value: me().name, confirmText:"保存"});
+    if (v && v.trim()) { localStorage.setItem("ww_name", v.trim()); act("rename", {name: v.trim()}); }
+  }
+  else if (d === "nokill") pickWolf(0);
+  else if (d === "save") { if (await sheet({title:`用解药救 ${st.witch.kill}号？`, message:"解药只有一瓶。", confirmText:"救"})) act("witch", {do: 1}); }
+  else if (d === "pass") { if (await sheet({title:"今晚不用药？"})) act("witch", {do: 0}); }
+  else if (d === "startvote") { if (await sheet({title:"结束讨论，开始投票？", message:"所有人都会进入投票。"})) act("startvote"); }
+  else if (d === "abstain") pickVote(0);
+});
+
+// 发言记录:真人按住 FoloToy 说的话(语音转文字)和 AI 的发言
+const BUSY = {1:s=>`🎙️ ${s}号正在说话…`, 2:()=>"✍️ 正在把刚才的话转成文字…", 3:s=>`🤖 ${s}号 AI 正在想…`,
+  4:s=>`🔊 ${s}号 AI 正在发言（听 FoloToy）`, 5:s=>`🎙️ ${s}号准备说话…`};
+function renderSpeech(){
+  const el = $("speech"), sp = st.speech || [];
+  const busy = st.busy && BUSY[st.busy] ? BUSY[st.busy](st.busy_s) : "";
+  if (!sp.length && !busy) { el.classList.add("hidden"); sigs.speech = ""; return; }
+  el.classList.remove("hidden");
+  setIfChanged("speech", el, `<div class="title" style="font-size:15px;font-weight:800">🗣️ 发言记录</div>
+    <div class="list" style="margin-top:6px">${sp.map(x => {
+      const bot = (st.seats.find(s => s.s === x.s) || {}).bot;
+      return `<div><b>第${x.r}天 ${x.s}号${bot ? "🤖" : ""}</b>：${esc(x.t)}</div>`; }).join("")}
+    ${busy ? `<div class="new">${busy}</div>` : ""}</div>`);
+}
+
+function renderNotices(){
+  const n = st.notices || [];
+  const el = $("notices");
+  if (!n.length) { el.classList.add("hidden"); sigs.notices = ""; lastNoticeCount = 0; return; }
+  el.classList.remove("hidden");
+  const fresh = n.length > lastNoticeCount;
+  setIfChanged("notices", el, `<div class="title" style="font-size:15px;font-weight:800">🔒 私人消息</div>
+    <div class="list" style="margin-top:6px">${n.map((t, i) => `<div class="${i === 0 && fresh ? "new" : ""}">${esc(t)}</div>`).join("")}</div>`);
+  lastNoticeCount = n.length;
+}
+function renderLog(){
+  setIfChanged("log", $("log"), (st.log || []).map(t => `<div>${esc(t)}</div>`).join(""));
+}
+
+/* ---------- 身份 ---------- */
+let roleTimer = 0;
+function renderRoleBtn(){
+  const y = me();
+  const show = y && y.role && st.ph !== "lobby";
+  $("rolebtn").classList.toggle("hidden", !show);
+  if (!show) $("rolecard").classList.add("hidden");
+}
+$("rolebtn").onclick = () => {
+  const y = me();
+  if (!y || !y.role) return;
+  const c = $("rolecard");
+  const cls = y.role === "wolf" ? "wolf" : "good";
+  let mates = "";
+  if (y.role === "wolf") {
+    const m = st.seats.filter(s => s.mate).map(s => s.s + "号");
+    mates = m.length ? `<div class="hint">队友：${m.join("、")}</div>` : `<div class="hint">你是唯一的狼人</div>`;
+  }
+  c.innerHTML = `<div class="hint">${y.seat}号 · ${esc(y.name)}</div><div class="big ${cls}">${ROLE[y.role]}</div>
+    <div class="hint">${ROLE_TIP[y.role]}</div>${mates}<div class="hint" style="margin-top:10px;color:var(--text-3)">5 秒后自动收起，点一下也能收起</div>`;
+  c.classList.remove("hidden");
+  clearTimeout(roleTimer); roleTimer = setTimeout(() => c.classList.add("hidden"), 5000);
+};
+$("rolecard").onclick = () => $("rolecard").classList.add("hidden");
+
+/* ---------- 启动 ---------- */
+if (tok) poll(true); else showJoin("");
+</script>
+</body>
+</html>

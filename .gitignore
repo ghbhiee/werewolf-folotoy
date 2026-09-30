@@ -4,3 +4,5 @@ sdkconfig.old
 managed_components/
 .vscode/
 .idea/
+hostsim/out/
+hostsim/lvgl/out/

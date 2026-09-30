@@ -14,6 +14,8 @@
 #define UI_MUTED      0xD9E7EC
 
 lv_obj_t *ui_pixel_screen_create(const char *title);
+// 同上,但可指定标题牌字体(中文界面需要 CJK 字体;传 NULL 等同上面那个)。
+lv_obj_t *ui_pixel_screen_create_font(const char *title, const lv_font_t *font);
 lv_obj_t *ui_pixel_panel_create(lv_obj_t *parent, int x, int y, int w, int h,
                                 uint32_t color);
 lv_obj_t *ui_pixel_label(lv_obj_t *parent, const char *text,

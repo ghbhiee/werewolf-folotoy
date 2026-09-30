@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>狼人杀 · 配置 Wi-Fi</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  button{touch-action:manipulation}
+  body{font-family:-apple-system,"PingFang SC","Noto Sans SC",system-ui,sans-serif;color:#eaeef7;
+    background:#0b0e15;min-height:100dvh;padding:16px}
+  .box{max-width:460px;margin:0 auto}
+  h1{font-size:22px;text-align:center;margin:20px 0 6px}
+  p{font-size:14px;color:#aab4c7;line-height:1.7;margin:8px 0}
+  label{display:block;font-size:13px;color:#6a7488;margin:14px 0 6px}
+  input{width:100%;min-height:50px;padding:0 14px;border-radius:14px;border:1px solid rgba(255,255,255,.18);
+    background:#1b2231;color:#eaeef7;font-size:16px;outline:none}
+  button{display:block;width:100%;min-height:50px;margin-top:18px;border:none;border-radius:14px;
+    background:linear-gradient(180deg,#f4cd6d,#e6b34d);color:#1a1206;font-size:16px;font-weight:800}
+  #msg{text-align:center;margin-top:14px;font-size:14px;color:#e6b34d;min-height:20px}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>配置家里 Wi-Fi</h1>
+  <p>填好后 FoloToy 会重启并连接这个 Wi-Fi。之后玩家手机连同一个 Wi-Fi，扫 FoloToy 屏幕上的二维码就能加入。</p>
+  <p>只支持 2.4 GHz Wi-Fi。连不上会自动退回热点模式。</p>
+  <label>Wi-Fi 名称（SSID）</label>
+  <input id="ssid" maxlength="32" autocomplete="off" autocapitalize="off">
+  <label>密码（没有密码就留空）</label>
+  <input id="pass" type="password" maxlength="64" autocomplete="off">
+  <button id="save">保存并重启</button>
+  <div id="msg"></div>
+</div>
+<script>
+"use strict";
+document.getElementById("save").onclick = async () => {
+  const ssid = document.getElementById("ssid").value;
+  const pass = document.getElementById("pass").value;
+  const msg = document.getElementById("msg");
+  if (!ssid) { msg.textContent = "请填写 Wi-Fi 名称"; return; }
+  if (pass && pass.length < 8) { msg.textContent = "WPA 密码至少 8 位"; return; }
+  msg.textContent = "保存中…";
+  try {
+    const r = await fetch("/api/wifi", {method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body: new URLSearchParams({ssid, pass}).toString()});
+    const j = await r.json();
+    msg.textContent = j.ok ? "已保存，FoloToy 正在重启。请把手机切回家里的 Wi-Fi。" : (j.err || "保存失败");
+  } catch (e) {
+    msg.textContent = "已发送。如果 FoloToy 已重启，请把手机切回家里的 Wi-Fi。";
+  }
+};
+</script>
+</body>
+</html>

@@ -6,6 +6,10 @@
 
 ## Unreleased
 
+- Added optional AI players to the Werewolf play: the device calls DeepSeek (decisions and speeches), Qwen TTS (speech streamed to the speaker), and Qwen streaming ASR (hold OK to talk) directly, one TLS connection at a time. Added bots to fill empty seats, a speech log on the phones, randomized night and vote pacing so timing does not reveal AI roles, an AI settings menu with a key-entry page, a "reconnect home Wi-Fi" menu item, and a BSP button-release event. Voice prompts are now generated with Qwen TTS.
+
+- Added the Werewolf (LAN edition) play: the device hosts the game over Wi-Fi (home Wi-Fi or its own hotspot), players join by scanning a QR code with their phone browser, and the moderator runs the game with the three buttons. Includes a pure-C rules state machine, a three-button moderator view model, a shared HTTP protocol layer, gzip-embedded player pages, Mandarin voice prompts, host tests (unit + bot full games) wired into `validate.sh --static`, a host simulator, and off-screen renders. See `docs/werewolf/README.md`.
+
 - Added the supplied 80-byte CW2017 profile for the specified 520 mAh cell, including content/update-flag checks, verified writes, the required restart sequence, and bounded SOC-readiness polling.
 
 - Expanded the environment bootstrap document: added Espressif's Git service mirror (`git.espressif.com.cn`) as the preferred mainland-China route for ESP-IDF v5.5.3 and its submodules, documented submodule long-wait/timeout handling, in-place repair, and the pinned-commit shallow fetch for large submodules such as `esp32-wifi-lib`, warned about stale per-repository Jihulab `insteadOf` residue, and added the official offline release archive as a last-resort fallback (learned from `esp-mosaico/esp-mosaico-vibe`).
