@@ -44,9 +44,12 @@ idf.py build
 idf.py -p /dev/cu.usbmodemXXXX flash
 ```
 
-Use the segmented `idf.py flash`. Do not write a merged full image to offset
-`0x0` on a provisioned device: it would erase the `cardid` partition at
-`0x356000`.
+During development use the segmented `idf.py flash`: it keeps the settings
+stored on the device. The merged `FoloToy-AI-Passport-full.bin` (from
+`./tools/validate.sh --firmware`) is flashed at offset `0x0`; it ends before the
+protected `cardid` partition at `0x356000`, but it overwrites the settings area,
+so saved Wi-Fi and AI keys must be entered again. Never run `idf.py erase-flash`
+on a provisioned device.
 
 The device first tries home Wi-Fi, otherwise it opens a hotspot and shows its
 password and a QR code. Home Wi-Fi is configured from the host menu (network

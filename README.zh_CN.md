@@ -36,8 +36,10 @@ idf.py build
 idf.py -p /dev/cu.usbmodemXXXX flash
 ```
 
-用分段的 `idf.py flash`。已配号的设备**不要**把合并后的整片镜像写到 `0x0`，会抹掉
-`0x356000` 的 `cardid` 分区。
+开发时用分段的 `idf.py flash`，设备上存的设置都会保留。合并镜像
+`FoloToy-AI-Passport-full.bin`（由 `./tools/validate.sh --firmware` 生成）从 `0x0` 烧录：它在受保护的
+`cardid` 分区（`0x356000`）之前结束，不会动设备身份，但会覆盖设置区，存过的 Wi-Fi 和 AI Key
+要重新填。已配号的设备**绝不要**执行 `idf.py erase-flash`。
 
 设备先连家里 Wi-Fi，连不上就自己开热点，屏上显示密码和二维码。家里 Wi-Fi 在主持菜单
 「网络设置 → 配置家里 Wi-Fi」里用手机配置。

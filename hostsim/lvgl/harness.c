@@ -89,6 +89,12 @@ static void run(uint32_t ms)
     }
 }
 
+// 夜晚各阶段的时长是随机的,不能按固定毫秒数等:一直走到指定阶段为止
+static void until(ww_phase_t ph, int step)
+{
+    for (int k = 0; k < 2000 && !(G.phase == ph && G.step == step); k++) run(100);
+}
+
 static int P[WW_MAX_SEATS + 1];
 
 static void fill(int n, int online_upto)
@@ -155,29 +161,36 @@ static void render_all(void)
     // 开局
     key(WW_KEY_OK, WW_GES_CLICK);
     show("07-deal");
-    run(WW_T_DEAL + 200);
+    until(WW_PH_NIGHT, 0);
     show("08-night");
-    run(WW_T_NIGHT + 200);
+    until(WW_PH_WOLF, 0);
     run(7000);
     show("09-wolf-open");
     for (int k = 0; k < 4; k++) {
         ww_act(&G, P[seat_role(WW_ROLE_WOLF, k)], WW_ACT_WOLF, seat_role(WW_ROLE_VILLAGER, 0), 0, NULL, NOW);
     }
-    run(200);
+    until(WW_PH_WOLF, 1);
     show("10-wolf-close");
-    run(WW_T_CLOSE + 200);
+    until(WW_PH_WITCH, 0);
     ww_act(&G, P[seat_role(WW_ROLE_WITCH, 0)], WW_ACT_WITCH, 2, seat_role(WW_ROLE_VILLAGER, 1), NULL, NOW);
     key(WW_KEY_OK, WW_GES_CLICK);
     show("11-witch-force-confirm");
-    run(WW_T_ROLE_MIN + WW_T_CLOSE + 200);
+    until(WW_PH_SEER, 0);
     ww_act(&G, P[seat_role(WW_ROLE_SEER, 0)], WW_ACT_SEER, seat_role(WW_ROLE_WOLF, 0), 0, NULL, NOW);
-    run(WW_T_ROLE_MIN + WW_T_CLOSE + 200);
+    until(WW_PH_DAWN, 0);
     show("12-dawn-deaths");
-    run(WW_T_DAWN + 200);
+    until(WW_PH_DISCUSS, 0);
     key(WW_KEY_DOWN, WW_GES_CLICK);
     key(WW_KEY_DOWN, WW_GES_CLICK);
     run(35000);
     show("13-discussion");
+    // AI 玩家相关的状态(封面图也用这几张)
+    Hs.key_ds = Hs.key_dk = Hs.ai_on = true;
+    ww_set_busy(&G, WW_BUSY_SPEAK, ww_current_speaker(&G));
+    show("13b-ai-speaking");
+    ww_set_busy(&G, WW_BUSY_REC, ww_current_speaker(&G));
+    show("13c-recording");
+    ww_set_busy(&G, WW_BUSY_NONE, 0);
     key(WW_KEY_OK, WW_GES_DOUBLE);
     show("14-status");
     key(WW_KEY_OK, WW_GES_CLICK);
